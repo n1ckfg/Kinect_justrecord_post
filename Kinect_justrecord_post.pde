@@ -87,10 +87,11 @@ void draw() {
         image(img, 0, 0);
         checkTimestamps();
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
-          addFrameCounter++;
-          writeFile(int(errorAllow/idealInterval));
+          int numWrites = int(errorAllow/idealInterval);
+          addFrameCounter+=numWrites;
+          writeFile(numWrites);
           diffReport += "   ADDED FRAME (" + addFrameCounter + ")";
-          errorAllow -= idealInterval;
+          errorAllow = 0;
         }
         else if (checkTimeAhead()&&!checkTimeBehind()) {  //ahead and not behind; skip an extra frame
           subtractFrameCounter++;
@@ -101,7 +102,7 @@ void draw() {
           diffReport += "   OK";
           writeFile(1);
         }
-        println(diffReport);
+        //println(diffReport);
         readFrameNum++;
       } 
       else {
@@ -130,6 +131,9 @@ void writeFile(int reps) {
   for (int i=0;i<reps;i++) {
     writeString = writeFilePath + "/" + writeFileName + shotNum + "/" + writeFileName + shotNum + "_frame"+writeFrameNum+"."+writeFileType;
     saveFrame(writeString);
+    if(errorAllow>idealInterval){
+      errorAllow -= idealInterval;
+    }
     println("written: " + writeString + diffReport);
     writeFrameNum++;
   }
