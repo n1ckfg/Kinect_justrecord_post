@@ -3,16 +3,18 @@
 
 import proxml.*;
 
-//**************
+//**************************************
+float recordedFps = 30; //fps you shot at
 int numberOfFolders = 1;  //right now you must set this manually!
-//**************
 String readFilePath = "data";
 String readFileName = "shot";
 String readFileType = "tga"; // record with tga for speed
-String readString = "";
 String writeFilePath = "render";
 String writeFileName = "shot";
 String writeFileType = "png";  // render with png to save space
+//**************************************
+
+String readString = "";
 String writeString = "";
 int shotNumOrig = 1;
 int shotNum = shotNumOrig;
@@ -28,7 +30,6 @@ File dataFolder;
 String[] numFiles; 
 int[] timestamps;
 int nowTimestamp, lastTimestamp;
-float recordedFps = 30; //fps you shot at
 float idealInterval = 1000/recordedFps;
 float errorAllow = 0;
 String diffReport = "";
@@ -82,27 +83,26 @@ void draw() {
     if (loaded) {
       if (readFrameNum<readFrameNumMax) {
         readString = readFilePath + "/" + readFileName + shotNum + "/" + readFileName + shotNum + "_frame" + readFrameNum + "." + readFileType;
-        println("read: " + readString + "     timestamp: " + timestamps[readFrameNum-1]  + " ms");
+        println("-- read: " + readString + "     timestamp: " + timestamps[readFrameNum-1]  + " ms");
         img = loadImage(readString);
         image(img, 0, 0);
         checkTimestamps();
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
-          int numWrites = int(errorAllow/idealInterval);
-          addFrameCounter+=numWrites;
-          diffReport += "   ADD FRAMES (" + addFrameCounter + ")";
-          writeFile(numWrites);
-          errorAllow = 0;
+          writeFile(int(errorAllow/idealInterval));
+          addFrameCounter+=errorAllow/idealInterval;
+          diffReport += "   ADDED FRAMES";
+          errorAllow -= idealInterval;
         }
         else if (checkTimeAhead()&&!checkTimeBehind()) {  //ahead and not behind; skip an extra frame
           subtractFrameCounter++;
-          diffReport += "   REMOVE FRAMES (" + subtractFrameCounter + ")";
+          diffReport += "   REMOVED FRAMES";
           errorAllow += idealInterval;
         }
         else if (!checkTimeAhead()&&!checkTimeBehind()) {  //not ahead and not behind; do nothing
           diffReport += "   OK";
           writeFile(1);
         }
-        //println(diffReport);
+    println("written: " + writeString + diffReport);
         readFrameNum++;
       } 
       else {
@@ -131,10 +131,7 @@ void writeFile(int reps) {
   for (int i=0;i<reps;i++) {
     writeString = writeFilePath + "/" + writeFileName + shotNum + "/" + writeFileName + shotNum + "_frame"+writeFrameNum+"."+writeFileType;
     saveFrame(writeString);
-    if(errorAllow>idealInterval){
-      errorAllow -= idealInterval;
-    }
-    println("written: " + writeString + "   " + diffReport + "   cumulative error: " + int(errorAllow) + " ms");
+    //println("written: " + writeString + diffReport);
     writeFrameNum++;
   }
 }
@@ -150,7 +147,7 @@ void readTimestamps() {
 void checkTimestamps() {
   if (readFrameNum>readFrameNumOrig) {
     float q = timestamps[readFrameNum-1]-timestamps[readFrameNum-2];
-    diffReport = "  diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms";
+    diffReport = "     diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms" + "   cumulative error: " + int(errorAllow) + " ms";
     errorAllow += q-idealInterval;
   }
 }
@@ -174,10 +171,12 @@ boolean checkTimeAhead() {
 }
 
 void renderVerdict() {
+  /*
   int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
-  println("shot" + shotNum + " final report:");
-  println(addFrameCounter + " dropped frames added");
-  println(subtractFrameCounter + " extra frames removed");
+  println("SHOT" + shotNum + " FINAL REPORT:");
+  println(int(addFrameCounter) + " dropped frames added");
+  println(int(subtractFrameCounter) + " extra frames removed");
+  */
 }
 
 float getAverageInterval() {
