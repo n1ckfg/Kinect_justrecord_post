@@ -88,18 +88,20 @@ void draw() {
         checkTimestamps();
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
           addFrameCounter++;
-          writeFile(2);
+          writeFile(int(errorAllow/idealInterval));
           diffReport += "   ADDED FRAME (" + addFrameCounter + ")";
-          errorAllow=0;
+          errorAllow -= idealInterval;
         }
         else if (checkTimeAhead()&&!checkTimeBehind()) {  //ahead and not behind; skip an extra frame
           subtractFrameCounter++;
           diffReport += "   REMOVED FRAME (" + subtractFrameCounter + ")";
-          errorAllow=0;
+          errorAllow += idealInterval;
         }
         else if (!checkTimeAhead()&&!checkTimeBehind()) {  //not ahead and not behind; do nothing
+          diffReport += "   OK";
           writeFile(1);
         }
+        println(diffReport);
         readFrameNum++;
       } 
       else {
