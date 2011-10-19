@@ -4,7 +4,7 @@
 import proxml.*;
 
 //**************
-int numberOfFolders = 3;  //right now you must set this manually!
+int numberOfFolders = 1;  //right now you must set this manually!
 //**************
 String readFilePath = "data";
 String readFileName = "shot";
@@ -89,13 +89,13 @@ void draw() {
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
           int numWrites = int(errorAllow/idealInterval);
           addFrameCounter+=numWrites;
+          diffReport += "   ADD FRAMES (" + addFrameCounter + ")";
           writeFile(numWrites);
-          diffReport += "   ADDED FRAME (" + addFrameCounter + ")";
           errorAllow = 0;
         }
         else if (checkTimeAhead()&&!checkTimeBehind()) {  //ahead and not behind; skip an extra frame
           subtractFrameCounter++;
-          diffReport += "   REMOVED FRAME (" + subtractFrameCounter + ")";
+          diffReport += "   REMOVE FRAMES (" + subtractFrameCounter + ")";
           errorAllow += idealInterval;
         }
         else if (!checkTimeAhead()&&!checkTimeBehind()) {  //not ahead and not behind; do nothing
@@ -134,7 +134,7 @@ void writeFile(int reps) {
     if(errorAllow>idealInterval){
       errorAllow -= idealInterval;
     }
-    println("written: " + writeString + diffReport);
+    println("written: " + writeString + "   " + diffReport + "   cumulative error: " + int(errorAllow) + " ms");
     writeFrameNum++;
   }
 }
@@ -150,7 +150,7 @@ void readTimestamps() {
 void checkTimestamps() {
   if (readFrameNum>readFrameNumOrig) {
     float q = timestamps[readFrameNum-1]-timestamps[readFrameNum-2];
-    diffReport = "     diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms" + "   cumulative error: " + int(errorAllow) + " ms";
+    diffReport = "  diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms";
     errorAllow += q-idealInterval;
   }
 }
