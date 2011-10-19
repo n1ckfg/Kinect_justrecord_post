@@ -3,13 +3,16 @@
 
 import proxml.*;
 
+//**************
+int numberOfFolders = 3;  //right now you must set this manually!
+//**************
 String readFilePath = "data";
 String readFileName = "shot";
-String readFileType = "tga";
+String readFileType = "tga"; // record with tga for speed
 String readString = "";
 String writeFilePath = "render";
 String writeFileName = "shot";
-String writeFileType = "tga";
+String writeFileType = "png";  // render with png to save space
 String writeString = "";
 int shotNumOrig = 1;
 int shotNum = shotNumOrig;
@@ -37,9 +40,12 @@ XMLInOut xmlIO;
 boolean loaded = false;
 
 void setup() {
-  countFolder();
+  reInit();
   size(640, 480, P2D);
-    xmlIO = new XMLInOut(this);
+}
+
+void xmlLoad() {
+  xmlIO = new XMLInOut(this);
   try {
     xmlIO.loadElement(xmlFileName); //loads the XML
   }
@@ -47,6 +53,18 @@ void setup() {
     //if loading failed 
     println("Loading Failed");
   }
+}
+
+void reInit() {
+  readFrameNum = readFrameNumOrig;
+  writeFrameNum = readFrameNum;
+  addFrameCounter = 0;
+  subtractFrameCounter = 0;
+  xmlFileName = readFilePath + "/" + readFileName + shotNum + ".xml";
+  errorAllow = 0;
+  loaded = false;
+  countFolder();
+  xmlLoad();
 }
 
 void xmlEvent(proxml.XMLElement element) {
@@ -60,41 +78,54 @@ void xmlEvent(proxml.XMLElement element) {
 
 
 void draw() {
-    if(loaded){
-  if (readFrameNum<readFrameNumMax) {
-    readString = readFilePath + "/" + readFileName + shotNum + "/" + readFileName + shotNum + "_frame" + readFrameNum + "." + readFileType;
-    println("read: " + readString + "     timestamp: " + timestamps[readFrameNum]  + " ms");
-    img = loadImage(readString);
-    image(img,0,0);
-    checkTimestamps();
-    if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
-      addFrameCounter++;
-      writeFile(2);
-      diffReport += "   ADDED FRAME (" + addFrameCounter + ")";
-    errorAllow=0;
-    }else if (checkTimeAhead()&&!checkTimeBehind()){  //ahead and not behind; skip an extra frame
-      subtractFrameCounter++;
-      diffReport += "   REMOVED FRAME (" + subtractFrameCounter + ")";
-      errorAllow=0;
-    }else if(!checkTimeAhead()&&!checkTimeBehind()){  //not ahead and not behind; do nothing
-    writeFile(1);
+  if (shotNum<=numberOfFolders) {
+    if (loaded) {
+      if (readFrameNum<readFrameNumMax) {
+        readString = readFilePath + "/" + readFileName + shotNum + "/" + readFileName + shotNum + "_frame" + readFrameNum + "." + readFileType;
+        println("read: " + readString + "     timestamp: " + timestamps[readFrameNum-1]  + " ms");
+        img = loadImage(readString);
+        image(img, 0, 0);
+        checkTimestamps();
+        if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
+          addFrameCounter++;
+          writeFile(2);
+          diffReport += "   ADDED FRAME (" + addFrameCounter + ")";
+          errorAllow=0;
+        }
+        else if (checkTimeAhead()&&!checkTimeBehind()) {  //ahead and not behind; skip an extra frame
+          subtractFrameCounter++;
+          diffReport += "   REMOVED FRAME (" + subtractFrameCounter + ")";
+          errorAllow=0;
+        }
+        else if (!checkTimeAhead()&&!checkTimeBehind()) {  //not ahead and not behind; do nothing
+          writeFile(1);
+        }
+        readFrameNum++;
+      } 
+      else {
+        renderVerdict();
+        if(shotNum==numberOfFolders){
+          exit();
+        }else{
+          shotNum++;
+          reInit();
+        }
+      }
     }
-    readFrameNum++;
-  } else {
-    renderVerdict();
+  }
+  else {
     exit();
-    }
-}
+  }
 }
 
 void countFolder() {
   dataFolder = new File(sketchPath, readFilePath + "/" + readFileName + shotNum+"/");
   numFiles = dataFolder.list();
-  readFrameNumMax = numFiles.length;
+  readFrameNumMax = numFiles.length+1;
 }
 
-void writeFile(int reps){
-  for(int i=0;i<reps;i++){
+void writeFile(int reps) {
+  for (int i=0;i<reps;i++) {
     writeString = writeFilePath + "/" + writeFileName + shotNum + "/" + writeFileName + shotNum + "_frame"+writeFrameNum+"."+writeFileType;
     saveFrame(writeString);
     println("written: " + writeString + diffReport);
@@ -111,45 +142,46 @@ void readTimestamps() {
 }
 
 void checkTimestamps() {
-  if (readFrameNum>readFrameNumOrig){
-  float q = timestamps[readFrameNum]-timestamps[readFrameNum-1];
-  diffReport = "     diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms" + "   cumulative error: " + int(errorAllow) + " ms";
-  errorAllow += q-idealInterval;
+  if (readFrameNum>readFrameNumOrig) {
+    float q = timestamps[readFrameNum-1]-timestamps[readFrameNum-2];
+    diffReport = "     diff: " + int(q) + " ms" + "   min: " + int(idealInterval)+ " ms" + "   cumulative error: " + int(errorAllow) + " ms";
+    errorAllow += q-idealInterval;
   }
 }
 
 boolean checkTimeBehind() {
   if (errorAllow>idealInterval) {
-      return true;
-    } else {
-      return false;
-    }
+    return true;
+  } 
+  else {
+    return false;
+  }
 }
 
 boolean checkTimeAhead() {
   if (errorAllow<-1*idealInterval) {
-      return true;
-    } else {
-      return false;
-    }
-}
-  
-void renderVerdict(){
-    int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
-    println("final report:");
-    println(addFrameCounter + " dropped frames added");
-    println(subtractFrameCounter + " extra frames removed");
+    return true;
+  } 
+  else {
+    return false;
+  }
 }
 
-float getAverageInterval(){
-float q = ((timestamps[3] - timestamps[2]) + (timestamps[1] - timestamps[0]))/2;
-for(int i=4;i<timestamps.length/4;i++){
-float qq = ((timestamps[i+3] - timestamps[i+2]) + (timestamps[i+1] - timestamps[i]))/2;
-q = (q+qq)/2;
+void renderVerdict() {
+  int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
+  println("shot" + shotNum + " final report:");
+  println(addFrameCounter + " dropped frames added");
+  println(subtractFrameCounter + " extra frames removed");
 }
-return q;
+
+float getAverageInterval() {
+  float q = ((timestamps[3] - timestamps[2]) + (timestamps[1] - timestamps[0]))/2;
+  for (int i=4;i<timestamps.length/4;i++) {
+    float qq = ((timestamps[i+3] - timestamps[i+2]) + (timestamps[i+1] - timestamps[i]))/2;
+    q = (q+qq)/2;
+  }
+  return q;
 }
 
 //~~~   END   ~~~
- 
 
