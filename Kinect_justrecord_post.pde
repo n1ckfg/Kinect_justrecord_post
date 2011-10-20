@@ -1,9 +1,15 @@
-//This is a utility to check for drop frames in Kinect recordings.
+//This is a utility to post-process and check for drop frames in Kinect recordings.
 //Copy the data folder recorded by Kinect_just_record before you start.
 
 import proxml.*;
+import peasy.*;
+import superCAD.*;
+//import processing.opengl.*;
 
 //**************************************
+boolean record3D = false; // records 3D rendering or just time-corrects original depth map
+int sW = 640;
+int sH = 480;
 float recordedFps = 30; //fps you shot at
 int numberOfFolders = 1;  //right now you must set this manually!
 String readFilePath = "data";
@@ -12,6 +18,8 @@ String readFileType = "tga"; // record with tga for speed
 String writeFilePath = "render";
 String writeFileName = "shot";
 String writeFileType = "tga";  // render with png to save space
+float zscale = 1; //orig 3
+float zskew = 10;
 //**************************************
 
 String readString = "";
@@ -26,6 +34,9 @@ int addFrameCounter = 0;
 int subtractFrameCounter = 0;
 String xmlFileName = readFilePath + "/" + readFileName + shotNum + ".xml";
 
+PeasyCam cam;
+float[][] gray = new float[sH][sW];
+
 File dataFolder;
 String[] numFiles; 
 int[] timestamps;
@@ -34,7 +45,7 @@ float idealInterval = 1000/recordedFps;
 float errorAllow = 0;
 String diffReport = "";
 
-PImage img;
+PImage img,buffer;
 
 proxml.XMLElement xmlFile;
 XMLInOut xmlIO;
@@ -42,7 +53,14 @@ boolean loaded = false;
 
 void setup() {
   reInit();
-  size(640, 480, P2D);
+  if(record3D){
+    size(sW, sH, P3D);
+  cam = new PeasyCam(this, sW);
+  }else{
+  size(sW,sH,P2D);
+  }
+  //smooth();
+  stroke(255);
 }
 
 void xmlLoad() {
@@ -79,13 +97,18 @@ void xmlEvent(proxml.XMLElement element) {
 
 
 void draw() {
+  background(0);
   if (shotNum<=numberOfFolders) {
     if (loaded) {
       if (readFrameNum<readFrameNumMax) {
         readString = readFilePath + "/" + readFileName + shotNum + "/" + readFileName + shotNum + "_frame" + readFrameNum + "." + readFileType;
         println("-- read: " + readString + "     timestamp: " + timestamps[readFrameNum-1]  + " ms");
         img = loadImage(readString);
-        image(img, 0, 0);
+        if(record3D){
+          objGenerate();
+        }else{
+          image(img, 0, 0);
+        }
         checkTimestamps();
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
           //********************
@@ -126,6 +149,7 @@ void draw() {
   else {
     exit();
   }
+  
 }
 
 void countFolder() {
@@ -137,7 +161,12 @@ void countFolder() {
 void writeFile(int reps) {
   for (int i=0;i<reps;i++) {
     writeString = writeFilePath + "/" + writeFileName + shotNum + "/" + writeFileName + shotNum + "_frame"+writeFrameNum+"."+writeFileType;
+    
     saveFrame(writeString);
+
+    if(record3D&&reps>1){
+      objGenerate();
+    }
     //println("written: " + writeString + diffReport);
     writeFrameNum++;
   }
@@ -178,15 +207,14 @@ boolean checkTimeAhead() {
 }
 
 void renderVerdict() {
-  
-  
+
+
   //int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
-   println("SHOT" + shotNum + " COMPLETE");
-   /*
+  println("SHOT" + shotNum + " COMPLETE");
+  /*
    println(int(addFrameCounter) + " dropped frames added");
    println(int(subtractFrameCounter) + " extra frames removed");
    */
-   
 }
 
 float getAverageInterval() {
@@ -196,6 +224,52 @@ float getAverageInterval() {
     q = (q+qq)/2;
   }
   return q;
+}
+
+static final int gray(color value) { 
+  return max((value >> 16) & 0xff, (value >> 8 ) & 0xff, value & 0xff);
+}
+
+void objGenerate(){
+  background(0);
+  if(record3D){
+    objBegin();
+  }
+  buffer = img;
+    for (int y = 0; y < sH; y++) {
+    for (int x = 0; x < sW; x++) {
+      // FIXME: this loses Z-resolution about tenfold ...
+      //       -> should grab the real distance instead...
+      color argb = buffer.pixels[y*width+x];
+      gray[y][x] = gray(argb);
+    }
+  }
+
+  // Kyle McDonald's original source used here
+  pushMatrix();
+  translate(-sW / 2, -sH / 2);  
+  int step = 2;
+  for (int y = step; y < sH; y += step) {
+    float planephase = 0.5 - (y - (sH / 2)) / zskew;
+    for (int x = step; x < sW; x += step)
+    {
+      stroke(gray[y][x]);
+      //point(x, y, (gray[y][x] - planephase) * zscale);
+      line(x, y, (gray[y][x] - planephase) * zscale, x+1, y, (gray[y][x] - planephase) * zscale);
+    }
+  }
+  popMatrix();
+  if(record3D){
+    objEnd();
+  }
+}
+
+void objBegin(){
+        beginRaw("superCAD.ObjFile", writeFilePath + "/" + writeFileName + shotNum + "/" + writeFileName + shotNum + "_frame"+writeFrameNum+"."+ "obj"); // Start recording to the file
+}
+
+void objEnd(){
+      endRaw();
 }
 
 //~~~   END   ~~~
