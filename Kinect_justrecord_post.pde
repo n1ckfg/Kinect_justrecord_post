@@ -11,7 +11,7 @@ String readFileName = "shot";
 String readFileType = "tga"; // record with tga for speed
 String writeFilePath = "render";
 String writeFileName = "shot";
-String writeFileType = "png";  // render with png to save space
+String writeFileType = "tga";  // render with png to save space
 //**************************************
 
 String readString = "";
@@ -88,7 +88,13 @@ void draw() {
         image(img, 0, 0);
         checkTimestamps();
         if (!checkTimeAhead()&&checkTimeBehind()) { //behind and not ahead; add a missing frame
-          writeFile(int(errorAllow/idealInterval));
+          //********************
+          int q = 1;
+          if (readFrameNum>readFrameNumOrig) {
+            q = timestamps[readFrameNum-1]-timestamps[readFrameNum-2];
+          }
+          writeFile(int(q/int(idealInterval)));
+          //********************
           addFrameCounter+=errorAllow/idealInterval;
           diffReport += "   ADDED FRAMES";
           errorAllow -= idealInterval;
@@ -102,14 +108,15 @@ void draw() {
           diffReport += "   OK";
           writeFile(1);
         }
-    println("written: " + writeString + diffReport);
+        println("written: " + writeString + diffReport);
         readFrameNum++;
       } 
       else {
         renderVerdict();
-        if(shotNum==numberOfFolders){
+        if (shotNum==numberOfFolders) {
           exit();
-        }else{
+        }
+        else {
           shotNum++;
           reInit();
         }
@@ -171,12 +178,15 @@ boolean checkTimeAhead() {
 }
 
 void renderVerdict() {
-  /*
-  int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
-  println("SHOT" + shotNum + " FINAL REPORT:");
-  println(int(addFrameCounter) + " dropped frames added");
-  println(int(subtractFrameCounter) + " extra frames removed");
-  */
+  
+  
+  //int timeDiff = int(30*((timestamps[timestamps.length-1] - timestamps[0])/1000));
+   println("SHOT" + shotNum + " COMPLETE");
+   /*
+   println(int(addFrameCounter) + " dropped frames added");
+   println(int(subtractFrameCounter) + " extra frames removed");
+   */
+   
 }
 
 float getAverageInterval() {
