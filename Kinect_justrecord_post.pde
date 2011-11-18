@@ -18,7 +18,7 @@ String readFileType = "tga"; // record with tga for speed
 String writeFilePath = "render";
 String writeFileName = "shot";
 String writeFileType = "tga";  // render with png to save space
-float zscale = 1; //orig 3
+float zscale = 1; //orig 3, 1 looks better in 2D image but 3 looks better for OBJ
 float zskew = 10;
 //**************************************
 
